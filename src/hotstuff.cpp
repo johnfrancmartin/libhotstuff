@@ -372,7 +372,8 @@ void HotStuffBase::do_vote(ReplicaID last_proposer, const Vote &vote) {
             //on_receive_vote(vote);
         }
         else
-            pn.send_msg(MsgVote(vote), get_config().get_addr(proposer));
+            pn.multicast_msg(MsgVote(vote), peers);
+//                pn.send_msg(MsgVote(vote), get_config().get_addr(proposer));
     });
 }
 

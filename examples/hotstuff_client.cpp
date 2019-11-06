@@ -52,9 +52,10 @@ uint32_t nfaulty;
 
 struct Request {
     command_t cmd;
+    size_t qc_size;
     size_t confirmed;
     salticidae::ElapsedTime et;
-    Request(const command_t &cmd): cmd(cmd), confirmed(0) { et.start(); }
+    Request(const command_t &cmd, const size_t &qc_size): cmd(cmd), qc_size(qc_size), confirmed(0) { et.start(); }
 };
 
 using Net = salticidae::MsgNetwork<opcode_t>;
@@ -74,6 +75,7 @@ bool try_send(bool check = true) {
     if ((!check || waiting.size() < max_async_num) && max_iter_num)
     {
         auto cmd = new CommandDummy(cid, cnt++);
+        size_t qc_size = rand() % replicas.size();
         MsgReqCmd msg(*cmd);
         for (auto &p: conns) mn.send_msg(msg, p.second);
 #ifndef HOTSTUFF_ENABLE_BENCHMARK
@@ -81,7 +83,7 @@ bool try_send(bool check = true) {
                             get_hex(cmd->get_hash()).c_str());
 #endif
         waiting.insert(std::make_pair(
-            cmd->get_hash(), Request(cmd)));
+            cmd->get_hash(), Request(cmd, qc_size)));
         if (max_iter_num > 0)
             max_iter_num--;
         return true;
@@ -97,7 +99,7 @@ void client_resp_cmd_handler(MsgRespCmd &&msg, const Net::conn_t &) {
     auto &et = it->second.et;
     if (it == waiting.end()) return;
     et.stop();
-    if (++it->second.confirmed <= nfaulty) return; // wait for f + 1 ack
+    if (++it->second.confirmed <= second.qc_size) return; // wait for f + 1 ack
 #ifndef HOTSTUFF_ENABLE_BENCHMARK
     HOTSTUFF_LOG_INFO("got %s, wall: %.3f, cpu: %.3f",
                         std::string(fin).c_str(),
